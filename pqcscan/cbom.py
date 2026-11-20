@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import uuid
@@ -59,6 +60,22 @@ def _worst(severities) -> str:
     return max(severities, key=SEVERITIES.index)
 
 
+def _location_id(f: Finding) -> str:
+    digest = hashlib.sha256(f"{f.path}\0{f.line}".encode()).hexdigest()[:10]
+    return f"{_slug(f.path)}-{f.line}-{digest}"
+
+
+def _material(kind: str, algorithm_ref: str, size: re.Match | None, name: str) -> dict:
+    material = {"type": kind, "algorithmRef": algorithm_ref}
+    if size:
+        material["size"] = int(size.group(1))
+    return {
+        "type": "cryptographic-asset",
+        "name": name,
+        "cryptoProperties": {"assetType": "related-crypto-material", "relatedCryptoMaterialProperties": material},
+    }
+
+
 class _Builder:
     def __init__(self):
         self.components: dict[str, dict] = {}
@@ -97,31 +114,31 @@ class _Builder:
     def add(self, f: Finding) -> None:
         if f.rule_id in PRIMITIVES:
             primitive, functions = PRIMITIVES[f.rule_id]
+            if f.algorithm == "RC4":  # pqcscan: ignore
+                primitive = "stream-cipher"
             self.algorithm(f.algorithm, primitive, functions, f)
         elif f.rule_id in KEY_MATERIAL or f.rule_id == CERTIFICATE:
             primitive, name = _key_algorithm(f.algorithm)
             algorithm_ref = self.algorithm(name, primitive, ["keygen"], f)
+            location = _location_id(f)
+            size = re.search(r"-(\d+)$", f.algorithm)
             if f.rule_id == CERTIFICATE:
-                ref = f"crypto/certificate/{_slug(f.path)}-{f.line}"
+                key_ref = f"crypto/key/{location}-subject-public-key"
+                self._add(key_ref, _material("public-key", algorithm_ref, size,
+                                             f"subject public key {f.path}:{f.line}"), f)
+                ref = f"crypto/certificate/{location}"
                 component = {
                     "type": "cryptographic-asset",
                     "name": f"certificate {f.path}:{f.line}",
                     "cryptoProperties": {
                         "assetType": "certificate",
-                        "certificateProperties": {"subjectPublicKeyRef": algorithm_ref, "certificateFormat": "X.509"},
+                        "certificateProperties": {"subjectPublicKeyRef": key_ref, "certificateFormat": "X.509"},
                     },
                 }
             else:
-                ref = f"crypto/key/{_slug(f.path)}-{f.line}"
-                size = re.search(r"-(\d+)$", f.algorithm)
-                material = {"type": KEY_MATERIAL[f.rule_id], "algorithmRef": algorithm_ref}
-                if size:
-                    material["size"] = int(size.group(1))
-                component = {
-                    "type": "cryptographic-asset",
-                    "name": f"{KEY_MATERIAL[f.rule_id]} {f.path}:{f.line}",
-                    "cryptoProperties": {"assetType": "related-crypto-material", "relatedCryptoMaterialProperties": material},
-                }
+                ref = f"crypto/key/{location}"
+                component = _material(KEY_MATERIAL[f.rule_id], algorithm_ref, size,
+                                      f"{KEY_MATERIAL[f.rule_id]} {f.path}:{f.line}")
             self._add(ref, component, f)
         elif f.rule_id == DEPENDENCY:
             name = f.algorithm.removeprefix("library: ")
