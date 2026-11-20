@@ -6,6 +6,7 @@ import hashlib
 import json
 import re
 import uuid
+from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -58,6 +59,15 @@ def _occurrence(f: Finding) -> dict:
 
 def _worst(severities) -> str:
     return max(severities, key=SEVERITIES.index)
+
+
+def _display_path(path: str) -> str:
+    """Show undecodable filename bytes as \\xNN so the CBOM stays valid UTF-8."""
+    try:
+        raw = path.encode("utf-8", "surrogateescape")
+    except UnicodeEncodeError:
+        raw = path.encode("utf-8", "surrogatepass")
+    return raw.decode("utf-8", "backslashreplace")
 
 
 def _location_id(f: Finding) -> str:
@@ -161,7 +171,7 @@ class _Builder:
 def to_cbom(result: ScanResult, serial: str | None = None, timestamp: str | None = None) -> str:
     builder = _Builder()
     for f in result.findings:
-        builder.add(f)
+        builder.add(replace(f, path=_display_path(f.path)))
     components = builder.finish()
     app_ref = "application"
     bom = {
