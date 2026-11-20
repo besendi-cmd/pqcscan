@@ -103,3 +103,15 @@ def test_cbom_certificate_references_public_key(tmp_path):
     material = target["cryptoProperties"]["relatedCryptoMaterialProperties"]
     assert material["type"] == "public-key"
     assert components[material["algorithmRef"]]["cryptoProperties"]["assetType"] == "algorithm"
+
+
+def test_cbom_handles_non_utf8_paths(tmp_path):
+    import os
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    try:
+        (tmp_path / os.fsdecode(b"key-\xff.pem")).write_bytes(_pem(key))
+    except (OSError, UnicodeError):
+        import pytest
+        pytest.skip("filesystem does not allow non-UTF-8 names")
+    text = to_cbom(scan(tmp_path))
+    assert any(c["bom-ref"].startswith("crypto/key/") for c in json.loads(text)["components"])
