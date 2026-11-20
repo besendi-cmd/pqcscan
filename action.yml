@@ -10,6 +10,15 @@ inputs:
   fail-on:
     description: Fail the job if any finding is at or above this severity (critical, high, medium, low, none)
     default: high
+  baseline:
+    description: Baseline file (from `pqcscan scan --write-baseline`); only new findings are reported and can fail the job
+    default: ""
+  dashboard-url:
+    description: pqcscan dashboard to send the full scan to (for example https://pqc.example.com)
+    default: ""
+  dashboard-token:
+    description: Upload token for the dashboard; pass it from a secret
+    default: ""
   sarif-file:
     description: Where to write the SARIF report
     default: pqcscan.sarif
@@ -32,9 +41,15 @@ runs:
         SCAN_PATH: ${{ inputs.path }}
         FAIL_ON: ${{ inputs.fail-on }}
         SARIF_FILE: ${{ inputs.sarif-file }}
+        BASELINE: ${{ inputs.baseline }}
+        DASHBOARD_URL: ${{ inputs.dashboard-url }}
+        PQCSCAN_TOKEN: ${{ inputs.dashboard-token }}
       run: |
         set +e
-        pqcscan scan "$SCAN_PATH" --sarif "$SARIF_FILE" --fail-on "$FAIL_ON"
+        args=(scan "$SCAN_PATH" --sarif "$SARIF_FILE" --fail-on "$FAIL_ON")
+        if [ -n "$BASELINE" ]; then args+=(--baseline "$BASELINE"); fi
+        if [ -n "$DASHBOARD_URL" ]; then args+=(--upload "$DASHBOARD_URL"); fi
+        pqcscan "${args[@]}"
         echo "exit-code=$?" >> "$GITHUB_OUTPUT"
     - name: Upload SARIF
       if: inputs.upload-sarif == 'true'

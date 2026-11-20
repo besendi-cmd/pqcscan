@@ -24,8 +24,12 @@ def to_text(result: ScanResult, color: bool = False) -> str:
         out.append(f"          {f.snippet}")
         out.append(f"          fix: {f.recommendation}")
         out.append("")
+    if result.baseline_suppressed is not None:
+        out.append(f"Baseline: {len(result.findings)} new, {result.baseline_suppressed} already known, "
+                   f"{result.baseline_resolved} fixed since the baseline")
     if not result.findings:
-        out.append("No quantum-vulnerable cryptography found.")
+        out.append("No new quantum-vulnerable cryptography found." if result.baseline_suppressed is not None
+                   else "No quantum-vulnerable cryptography found.")
         return "\n".join(out)
     out.append("Summary: " + " | ".join(f"{s} {n}" for s, n in result.by_severity().items()))
     out.append("Cryptographic inventory:")
@@ -42,6 +46,8 @@ def to_json(result: ScanResult) -> str:
             "root": result.root,
             "files_scanned": result.files_scanned,
             "summary": result.by_severity(),
+            **({"baseline": {"suppressed": result.baseline_suppressed, "resolved": result.baseline_resolved}}
+               if result.baseline_suppressed is not None else {}),
             "inventory": result.inventory(),
             "findings": [f.to_dict() for f in result.findings],
         },
@@ -79,6 +85,7 @@ def to_sarif(result: ScanResult) -> str:
                     "region": {"startLine": f.line, "startColumn": f.column},
                 }
             }],
+            "partialFingerprints": {"pqcscan/v1": f.fingerprint},
             "properties": {"algorithm": f.algorithm, "severity": f.severity},
         }
         for f in result.findings

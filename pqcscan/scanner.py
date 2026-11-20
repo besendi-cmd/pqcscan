@@ -54,6 +54,7 @@ class Finding:
     column: int
     snippet: str
     recommendation: str
+    fingerprint: str = ""
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -64,6 +65,8 @@ class ScanResult:
     root: str
     files_scanned: int = 0
     findings: list[Finding] = field(default_factory=list)
+    baseline_suppressed: int | None = None
+    baseline_resolved: int | None = None
 
     def by_severity(self) -> dict[str, int]:
         counts = {s: 0 for s in reversed(SEVERITIES)}
@@ -237,6 +240,9 @@ def scan(root: str | os.PathLike, excludes: list[str] | None = None, min_severit
         if path.suffix.lower() not in KEY_EXTENSIONS or path.suffix.lower() == ".pub":
             result.findings.extend(scan_text(text, rel, language_for(path)))
     result.findings = [f for f in result.at_or_above(min_severity)]
+    from .baseline import assign_fingerprints
+
+    assign_fingerprints(result.findings)
     result.findings.sort(key=lambda f: (-SEVERITIES.index(f.severity), f.path, f.line, f.rule_id))
     return result
 

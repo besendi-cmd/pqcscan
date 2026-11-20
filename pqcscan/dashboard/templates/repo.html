@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}{{ repo.name }} · pqcscan dashboard{% endblock %}
+{% block content %}
+<p class="muted"><a href="/">← All repositories</a></p>
+<h1>{{ repo.name }} <span class="pill {{ status(latest) }}">{{ "ready" if status(latest) == "ready" else "at risk" }}</span></h1>
+<p class="sub">Last scan {{ latest.created.replace("T", " ")[:16] }} UTC{% if latest.branch %} on <strong>{{ latest.branch }}</strong>{% endif %}{% if latest.commit_sha %} @ <code>{{ latest.commit_sha[:12] }}</code>{% endif %} · {{ latest.files_scanned }} files scanned</p>
+
+<div class="cards">
+  <div class="card"><div class="label">Quantum-vulnerable usages</div><div class="value">{{ latest.quantum_vulnerable }}</div></div>
+  {% for s in severities %}<div class="card"><div class="label">{{ s }}</div><div class="value {{ s }}">{{ latest[s] }}</div></div>{% endfor %}
+</div>
+
+{% if chart %}<h2>Progress</h2>{% include "_chart.html" %}{% endif %}
+
+<h2>Open findings</h2>
+{% if findings %}
+<table>
+  <thead><tr><th>Severity</th><th>Finding</th><th>Location</th><th>Replace with</th></tr></thead>
+  <tbody>
+  {% for f in findings %}
+  <tr>
+    <td><span class="pill {{ f.severity }}">{{ f.severity }}</span><div class="muted">{{ f.rule_id }}</div></td>
+    <td>{{ f.title }}<div class="muted">{{ f.algorithm }} · {{ "quantum: " ~ f.threat if quantum(f) else "classically broken" }}</div></td>
+    <td><code>{{ f.path }}:{{ f.line }}</code><div><code class="muted">{{ f.snippet[:160] }}</code></div></td>
+    <td>{{ f.recommendation }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty">No quantum-vulnerable cryptography in the latest scan.</div>
+{% endif %}
+
+<div class="grid2">
+<div>
+<h2>Scan history</h2>
+<table>
+  <thead><tr><th>Date (UTC)</th><th>Commit</th><th class="num">Quantum-vulnerable</th>{% for s in severities %}<th class="num">{{ s }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for h in repo.history[:50] %}
+  <tr><td>{{ h.created.replace("T", " ")[:16] }}</td>
+      <td>{% if h.commit_sha %}<code>{{ h.commit_sha[:7] }}</code>{% endif %} <span class="muted">{{ h.branch or "" }}</span></td>
+      <td class="num">{{ h.quantum_vulnerable }}</td>
+      {% for s in severities %}<td class="num {{ s if h[s] else 'muted' }}">{{ h[s] }}</td>{% endfor %}</tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<div>
+<h2>Algorithms in use</h2>
+<table>
+  <thead><tr><th>Algorithm</th><th class="num">Usages</th></tr></thead>
+  <tbody>{% for algorithm, n in inventory.items() %}<tr><td>{{ algorithm }}</td><td class="num">{{ n }}</td></tr>{% else %}<tr><td colspan="2" class="muted">None</td></tr>{% endfor %}</tbody>
+</table>
+</div>
+</div>
+{% endblock %}
