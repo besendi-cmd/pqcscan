@@ -6,7 +6,7 @@ import subprocess
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from .report import to_json
 from .scanner import ScanResult
@@ -14,6 +14,19 @@ from .scanner import ScanResult
 
 class UploadError(Exception):
     pass
+
+
+class _NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, *args, **kwargs):
+        return None
+
+
+_opener = build_opener(_NoRedirect)
+
+
+def urlopen(request: Request, timeout: float):
+    """Open without following redirects, so the bearer token never reaches another URL."""
+    return _opener.open(request, timeout=timeout)
 
 
 def _git(root: Path, *args: str) -> str | None:

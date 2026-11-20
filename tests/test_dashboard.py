@@ -199,3 +199,31 @@ def test_single_file_upload_uses_containing_repo(monkeypatch, tmp_path):
     monkeypatch.setenv("PQCSCAN_TOKEN", TOKEN)
     main(["scan", str(tmp_path / "keys.py"), "--upload", "http://dash.test"])
     assert sent["repo"] == "acme/vault"
+
+
+def test_upload_does_not_follow_redirects():
+    import threading
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+    seen = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            seen.append((self.path, self.headers.get("Authorization")))
+            self.send_response(302)
+            self.send_header("Location", "/elsewhere")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        do_GET = do_POST
+
+        def log_message(self, *args):
+            pass
+
+    server = HTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        with pytest.raises(upload_module.UploadError, match="HTTP 302"):
+            upload_module.upload(scan(EXAMPLES), f"http://127.0.0.1:{server.server_port}", TOKEN, repo="acme/api")
+    finally:
+        server.shutdown()
+    assert [path for path, _ in seen] == ["/api/v1/scans"]
