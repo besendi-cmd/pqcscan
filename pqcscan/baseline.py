@@ -29,8 +29,8 @@ def assign_fingerprints(findings: list[Finding]) -> None:
 
 def write_baseline(result: ScanResult, path: str | Path) -> int:
     entries = sorted(
-        ({"fingerprint": f.fingerprint, "rule_id": f.rule_id, "path": f.path, "algorithm": f.algorithm,
-          "snippet": f.snippet} for f in result.findings),
+        ({"fingerprint": f.fingerprint, "rule_id": f.rule_id, "path": f.path, "algorithm": f.algorithm}
+         for f in result.findings),
         key=lambda e: (e["path"], e["rule_id"], e["fingerprint"]),
     )
     data = {

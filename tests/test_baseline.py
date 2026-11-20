@@ -72,3 +72,12 @@ def test_sarif_has_partial_fingerprints(app):
 
     results = json.loads(to_sarif(scan(app)))["runs"][0]["results"]
     assert all(r["partialFingerprints"]["pqcscan/v1"] for r in results)
+
+
+def test_baseline_file_in_scan_root_is_not_scanned_and_has_no_snippets(tmp_path):
+    (tmp_path / "app.py").write_text('API_KEY = "s3cr3t"; key = rsa.generate_private_key(65537, 2048)\n')
+    baseline = tmp_path / ".pqcscan-baseline.json"
+    assert main(["scan", str(tmp_path), "--write-baseline", str(baseline), "-o", str(tmp_path.parent / "o.txt")]) == 0
+    assert "s3cr3t" not in baseline.read_text()
+    assert main(["scan", str(tmp_path), "--baseline", str(baseline), "--fail-on", "low",
+                 "-o", str(tmp_path.parent / "o.txt")]) == 0

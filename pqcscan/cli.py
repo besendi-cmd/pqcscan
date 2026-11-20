@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import glob
 import sys
 from pathlib import Path
 
@@ -16,8 +17,20 @@ def _write(path: str, content: str) -> None:
     Path(path).write_text(content + "\n")
 
 
+def _baseline_excludes(args) -> list[str]:
+    root = Path(args.path).resolve()
+    excludes = []
+    for path in (args.baseline, args.write_baseline):
+        if path:
+            try:
+                excludes.append(glob.escape(Path(path).resolve().relative_to(root).as_posix()))
+            except ValueError:
+                pass
+    return excludes
+
+
 def cmd_scan(args) -> int:
-    result = scan(args.path, excludes=args.exclude, min_severity=args.min_severity)
+    result = scan(args.path, excludes=args.exclude + _baseline_excludes(args), min_severity=args.min_severity)
     if args.write_baseline:
         n = write_baseline(result, args.write_baseline)
         print(f"Wrote baseline with {n} findings to {args.write_baseline}", file=sys.stderr)
