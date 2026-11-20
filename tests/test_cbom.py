@@ -114,4 +114,9 @@ def test_cbom_handles_non_utf8_paths(tmp_path):
         import pytest
         pytest.skip("filesystem does not allow non-UTF-8 names")
     text = to_cbom(scan(tmp_path))
-    assert any(c["bom-ref"].startswith("crypto/key/") for c in json.loads(text)["components"])
+    _validate(text)
+    text.encode("utf-8")
+    assert "\\ud" not in text.lower()
+    keys = [c for c in json.loads(text)["components"] if c["bom-ref"].startswith("crypto/key/")]
+    assert keys and keys[0]["name"].endswith("key-\\xff.pem:1")
+    assert keys[0]["evidence"]["occurrences"][0]["location"] == "key-\\xff.pem"
