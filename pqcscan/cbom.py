@@ -61,7 +61,7 @@ def _worst(severities) -> str:
 
 
 def _location_id(f: Finding) -> str:
-    digest = hashlib.sha256(f"{f.path}\0{f.line}".encode()).hexdigest()[:10]
+    digest = hashlib.sha256(f"{f.path}\0{f.line}".encode("utf-8", "surrogatepass")).hexdigest()[:10]
     return f"{_slug(f.path)}-{f.line}-{digest}"
 
 
