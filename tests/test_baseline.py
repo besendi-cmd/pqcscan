@@ -93,3 +93,13 @@ def test_same_file_for_baseline_and_write_baseline_compares_first(tmp_path):
     (src / "b.py").write_text("k = ec.generate_private_key(ec.SECP256R1())\n")
     assert main(["scan", str(src), "--baseline", str(b), "--write-baseline", str(b), "--fail-on", "low", "-o", out]) == 1
     assert len(load_baseline(b)) == 2
+
+
+def test_cbom_keeps_baselined_assets(tmp_path):
+    (tmp_path / "a.py").write_text("key = rsa.generate_private_key(65537, 2048)\n")
+    b = tmp_path.parent / "cbom-b.json"
+    cbom = tmp_path.parent / "cbom.json"
+    out = str(tmp_path.parent / "o.txt")
+    main(["scan", str(tmp_path), "--write-baseline", str(b), "-o", out])
+    main(["scan", str(tmp_path), "--baseline", str(b), "--cbom", str(cbom), "-o", out])
+    assert any(c["bom-ref"].startswith("crypto/algorithm/rsa") for c in json.loads(cbom.read_text())["components"])

@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import glob
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 from . import __version__
@@ -41,13 +42,14 @@ def cmd_scan(args) -> int:
     if args.write_baseline:
         n = write_baseline(result, args.write_baseline)
         print(f"Wrote baseline with {n} findings to {args.write_baseline}", file=sys.stderr)
+    inventory = replace(result, findings=list(result.findings))
     if known is not None:
         apply_baseline(result, known)
     if args.format == "text":
         color = sys.stdout.isatty() and not args.no_color and not args.output
         report = to_text(result, color=color)
     else:
-        report = {"json": to_json, "sarif": to_sarif, "cbom": to_cbom}[args.format](result)
+        report = to_cbom(inventory) if args.format == "cbom" else {"json": to_json, "sarif": to_sarif}[args.format](result)
     if args.output:
         _write(args.output, report)
     else:
@@ -57,7 +59,7 @@ def cmd_scan(args) -> int:
     if args.json:
         _write(args.json, to_json(result))
     if args.cbom:
-        _write(args.cbom, to_cbom(result))
+        _write(args.cbom, to_cbom(inventory))
     if args.fail_on != "none" and result.at_or_above(args.fail_on):
         return 1
     return 0
