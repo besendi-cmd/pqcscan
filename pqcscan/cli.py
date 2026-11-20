@@ -31,7 +31,7 @@ def _baseline_paths(args) -> set[str]:
 
 
 def cmd_scan(args) -> int:
-    result = scan(args.path, excludes=args.exclude, min_severity=args.min_severity)
+    result = scan(args.path, excludes=args.exclude, min_severity="low" if args.upload else args.min_severity)
     baseline_files = _baseline_paths(args)
     result.findings = [f for f in result.findings if f.path not in baseline_files]
     if args.upload:
@@ -46,6 +46,7 @@ def cmd_scan(args) -> int:
             print(f"pqcscan: upload failed: {e}", file=sys.stderr)
             return 2
         print(f"Uploaded scan to {uploaded.get('url', args.upload)}", file=sys.stderr)
+        result.findings = result.at_or_above(args.min_severity)
     known = None
     if args.baseline:
         try:

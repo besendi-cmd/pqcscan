@@ -163,3 +163,16 @@ def test_upload_rejects_oversized_body(client, monkeypatch):
     body = json.dumps(_payload()).encode()
     r = client.post("/api/v1/scans", content=iter([body[:80], body[80:]]), headers=AUTH)
     assert r.status_code == 413
+
+
+def test_cli_upload_ignores_min_severity(monkeypatch, tmp_path):
+    sent = {}
+
+    def fake_urlopen(request, timeout):
+        sent.update(json.loads(request.data))
+        raise HTTPError(request.full_url, 500, "error", {}, None)
+
+    monkeypatch.setattr(upload_module, "urlopen", fake_urlopen)
+    monkeypatch.setenv("PQCSCAN_TOKEN", TOKEN)
+    main(["scan", str(EXAMPLES), "--min-severity", "critical", "--upload", "http://dash.test"])
+    assert {f["severity"] for f in sent["report"]["findings"]} > {"critical"}
