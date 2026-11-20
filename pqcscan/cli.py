@@ -31,15 +31,18 @@ def _baseline_excludes(args) -> list[str]:
 
 def cmd_scan(args) -> int:
     result = scan(args.path, excludes=args.exclude + _baseline_excludes(args), min_severity=args.min_severity)
-    if args.write_baseline:
-        n = write_baseline(result, args.write_baseline)
-        print(f"Wrote baseline with {n} findings to {args.write_baseline}", file=sys.stderr)
+    known = None
     if args.baseline:
         try:
-            apply_baseline(result, load_baseline(args.baseline))
+            known = load_baseline(args.baseline)
         except (OSError, ValueError) as e:
             print(f"pqcscan: cannot read baseline: {e}", file=sys.stderr)
             return 2
+    if args.write_baseline:
+        n = write_baseline(result, args.write_baseline)
+        print(f"Wrote baseline with {n} findings to {args.write_baseline}", file=sys.stderr)
+    if known is not None:
+        apply_baseline(result, known)
     if args.format == "text":
         color = sys.stdout.isatty() and not args.no_color and not args.output
         report = to_text(result, color=color)

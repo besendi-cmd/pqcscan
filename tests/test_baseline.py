@@ -81,3 +81,15 @@ def test_baseline_file_in_scan_root_is_not_scanned_and_has_no_snippets(tmp_path)
     assert "s3cr3t" not in baseline.read_text()
     assert main(["scan", str(tmp_path), "--baseline", str(baseline), "--fail-on", "low",
                  "-o", str(tmp_path.parent / "o.txt")]) == 0
+
+
+def test_same_file_for_baseline_and_write_baseline_compares_first(tmp_path):
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "a.py").write_text("key = rsa.generate_private_key(65537, 2048)\n")
+    b = tmp_path / "b.json"
+    out = str(tmp_path / "o.txt")
+    main(["scan", str(src), "--write-baseline", str(b), "-o", out])
+    (src / "b.py").write_text("k = ec.generate_private_key(ec.SECP256R1())\n")
+    assert main(["scan", str(src), "--baseline", str(b), "--write-baseline", str(b), "--fail-on", "low", "-o", out]) == 1
+    assert len(load_baseline(b)) == 2
