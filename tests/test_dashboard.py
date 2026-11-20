@@ -110,6 +110,7 @@ def test_cli_upload_round_trip(client, monkeypatch, capsys):
 
     monkeypatch.setattr(upload_module, "urlopen", fake_urlopen)
     monkeypatch.setenv("GITHUB_SHA", "feedface")
+    monkeypatch.delenv("GITHUB_HEAD_REF", raising=False)
     monkeypatch.setenv("GITHUB_REF_NAME", "release")
 
     monkeypatch.delenv("PQCSCAN_TOKEN", raising=False)
