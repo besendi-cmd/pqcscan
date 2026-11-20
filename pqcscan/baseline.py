@@ -24,7 +24,7 @@ def assign_fingerprints(findings: list[Finding]) -> None:
         key = "\0".join((f.rule_id, f.path, f.algorithm, re.sub(r"\s+", " ", f.snippet).strip()))
         index = seen.get(key, 0)
         seen[key] = index + 1
-        f.fingerprint = hashlib.sha256(f"{key}\0{index}".encode()).hexdigest()[:32]
+        f.fingerprint = hashlib.sha256(f"{key}\0{index}".encode("utf-8", "surrogatepass")).hexdigest()[:32]
 
 
 def write_baseline(result: ScanResult, path: str | Path) -> int:
