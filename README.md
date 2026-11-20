@@ -42,6 +42,7 @@ pip install git+https://github.com/besendi-cmd/pqcscan
 pqcscan scan .                                   # human-readable report
 pqcscan scan . --format json -o report.json      # machine-readable inventory
 pqcscan scan . --sarif pqcscan.sarif             # also write SARIF for GitHub Code Scanning
+pqcscan scan . --format cbom -o cbom.json        # CycloneDX 1.6 cryptographic bill of materials
 pqcscan scan . --fail-on high                    # exit 1 for CI if anything high or worse is found
 pqcscan scan . --min-severity high --exclude "legacy/*"
 pqcscan rules                                    # list rules
@@ -62,6 +63,10 @@ Cryptographic inventory:
 ```
 
 Try it on the bundled sample: `pqcscan scan examples/vulnerable-app`.
+
+### Cryptographic bill of materials (CBOM)
+
+`--format cbom` (or `--cbom FILE` alongside another format) writes a [CycloneDX 1.6](https://cyclonedx.org/capabilities/cbom/) CBOM: one `cryptographic-asset` per algorithm (with primitive, functions, parameter set and `nistQuantumSecurityLevel`), keys and certificates as related crypto material, crypto-only dependencies as libraries, and every location as `evidence.occurrences`. Severity and recommended replacement are attached as `pqcscan:*` properties. Compliance teams can import it into tools that read CycloneDX, such as Dependency-Track.
 
 ### Suppressing findings
 
@@ -98,7 +103,6 @@ pytest
 
 ## Roadmap
 
-- CycloneDX CBOM (cryptographic bill of materials) export
 - Live TLS / SSH endpoint scanning
 - Baselines so CI only fails on new findings
 - AST-based analysis to cut false positives

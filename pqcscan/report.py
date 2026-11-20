@@ -94,4 +94,3 @@ def to_sarif(result: ScanResult) -> str:
     return json.dumps(sarif, indent=2)
 
 
-FORMATS = {"text": to_text, "json": to_json, "sarif": to_sarif}

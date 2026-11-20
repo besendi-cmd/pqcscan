@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 from . import __version__
+from .cbom import to_cbom
 from .report import to_json, to_sarif, to_text
 from .rules import ALL_RULES, SEVERITIES
 from .scanner import scan
@@ -20,7 +21,7 @@ def cmd_scan(args) -> int:
         color = sys.stdout.isatty() and not args.no_color and not args.output
         report = to_text(result, color=color)
     else:
-        report = to_json(result) if args.format == "json" else to_sarif(result)
+        report = {"json": to_json, "sarif": to_sarif, "cbom": to_cbom}[args.format](result)
     if args.output:
         _write(args.output, report)
     else:
@@ -29,6 +30,8 @@ def cmd_scan(args) -> int:
         _write(args.sarif, to_sarif(result))
     if args.json:
         _write(args.json, to_json(result))
+    if args.cbom:
+        _write(args.cbom, to_cbom(result))
     if args.fail_on != "none" and result.at_or_above(args.fail_on):
         return 1
     return 0
@@ -47,10 +50,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("scan", help="scan a directory or file")
     s.add_argument("path", nargs="?", default=".")
-    s.add_argument("-f", "--format", choices=["text", "json", "sarif"], default="text")
+    s.add_argument("-f", "--format", choices=["text", "json", "sarif", "cbom"], default="text")
     s.add_argument("-o", "--output", help="write the report to a file instead of stdout")
     s.add_argument("--sarif", metavar="FILE", help="also write a SARIF report (for GitHub Code Scanning)")
     s.add_argument("--json", metavar="FILE", help="also write a JSON report")
+    s.add_argument("--cbom", metavar="FILE", help="also write a CycloneDX 1.6 cryptographic bill of materials")
     s.add_argument("--exclude", action="append", default=[], metavar="GLOB", help="skip matching paths (repeatable)")
     s.add_argument("--min-severity", choices=SEVERITIES, default="low", help="hide findings below this severity")
     s.add_argument("--fail-on", choices=SEVERITIES + ("none",), default="none",
