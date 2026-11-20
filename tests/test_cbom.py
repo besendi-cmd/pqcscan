@@ -1,7 +1,11 @@
 import json
 from pathlib import Path
 
-from cryptography.hazmat.primitives import serialization
+import datetime
+
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.x509.oid import NameOID
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cyclonedx.schema import SchemaVersion
 from cyclonedx.validation.json import JsonStrictValidator
@@ -42,7 +46,8 @@ def test_cbom_key_material(tmp_path):
     text = to_cbom(scan(tmp_path))
     _validate(text)
     components = {c["bom-ref"]: c for c in json.loads(text)["components"]}
-    material = components["crypto/key/id-key-1"]["cryptoProperties"]["relatedCryptoMaterialProperties"]
+    (ref,) = [r for r in components if r.startswith("crypto/key/id-key-1-")]
+    material = components[ref]["cryptoProperties"]["relatedCryptoMaterialProperties"]
     assert material == {"type": "private-key", "algorithmRef": "crypto/algorithm/rsa-2048@pke", "size": 2048}
     assert components["crypto/algorithm/rsa-2048@pke"]["cryptoProperties"]["algorithmProperties"]["classicalSecurityLevel"] == 112
 
@@ -54,3 +59,47 @@ def test_cli_cbom_output(tmp_path, capsys):
     capsys.readouterr()
     assert main(["scan", str(EXAMPLES), "--format", "cbom"]) == 0
     assert json.loads(capsys.readouterr().out)["bomFormat"] == "CycloneDX"
+
+
+def _pem(key) -> bytes:
+    return key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
+                             serialization.NoEncryption())
+
+
+def test_cbom_key_refs_do_not_collide(tmp_path):
+    (tmp_path / "keys").mkdir()
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    for name in ("keys/id_rsa.pem", "keys/id-rsa.pem", "keys-id-RSA.pem"):
+        (tmp_path / name).write_bytes(_pem(key))
+    text = to_cbom(scan(tmp_path))
+    _validate(text)
+    keys = [c for c in json.loads(text)["components"] if c["bom-ref"].startswith("crypto/key/")]
+    assert len(keys) == 3
+
+
+def test_cbom_stream_and_block_ciphers(tmp_path):
+    (tmp_path / "a.py").write_text('c1 = "rc4"\nc2 = "arcfour"\nc3 = "3des"\n')
+    text = to_cbom(scan(tmp_path))
+    _validate(text)
+    components = {c["bom-ref"]: c for c in json.loads(text)["components"]}
+    assert components["crypto/algorithm/rc4@stream-cipher"]["cryptoProperties"]["algorithmProperties"]["primitive"] == "stream-cipher"
+    assert "crypto/algorithm/des-3des@block-cipher" in components
+
+
+def test_cbom_certificate_references_public_key(tmp_path):
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "example.com")])
+    now = datetime.datetime.now(datetime.timezone.utc)
+    cert = (x509.CertificateBuilder().subject_name(name).issuer_name(name).public_key(key.public_key())
+            .serial_number(1).not_valid_before(now).not_valid_after(now + datetime.timedelta(days=1))
+            .sign(key, hashes.SHA256()))
+    (tmp_path / "server.crt").write_bytes(cert.public_bytes(serialization.Encoding.PEM))
+    text = to_cbom(scan(tmp_path))
+    _validate(text)
+    components = {c["bom-ref"]: c for c in json.loads(text)["components"]}
+    certs = [c for c in components.values() if c["cryptoProperties"]["assetType"] == "certificate"]
+    assert len(certs) == 1
+    target = components[certs[0]["cryptoProperties"]["certificateProperties"]["subjectPublicKeyRef"]]
+    material = target["cryptoProperties"]["relatedCryptoMaterialProperties"]
+    assert material["type"] == "public-key"
+    assert components[material["algorithmRef"]]["cryptoProperties"]["assetType"] == "algorithm"
