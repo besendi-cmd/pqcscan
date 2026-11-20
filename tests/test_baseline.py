@@ -103,3 +103,12 @@ def test_cbom_keeps_baselined_assets(tmp_path):
     main(["scan", str(tmp_path), "--write-baseline", str(b), "-o", out])
     main(["scan", str(tmp_path), "--baseline", str(b), "--cbom", str(cbom), "-o", out])
     assert any(c["bom-ref"].startswith("crypto/algorithm/rsa") for c in json.loads(cbom.read_text())["components"])
+
+
+def test_nested_file_named_like_baseline_is_still_scanned(tmp_path):
+    (tmp_path / "pkg").mkdir()
+    (tmp_path / "pkg" / "crypto.py").write_text("key = rsa.generate_private_key(65537, 2048)\n")
+    baseline = tmp_path / "crypto.py"
+    out = str(tmp_path.parent / "o.txt")
+    assert main(["scan", str(tmp_path), "--write-baseline", str(baseline), "-o", out]) == 0
+    assert len(load_baseline(baseline)) == 1

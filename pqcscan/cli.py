@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import glob
 import sys
 from dataclasses import replace
 from pathlib import Path
@@ -18,20 +17,22 @@ def _write(path: str, content: str) -> None:
     Path(path).write_text(content + "\n")
 
 
-def _baseline_excludes(args) -> list[str]:
+def _baseline_paths(args) -> set[str]:
     root = Path(args.path).resolve()
-    excludes = []
+    paths = set()
     for path in (args.baseline, args.write_baseline):
         if path:
             try:
-                excludes.append(glob.escape(Path(path).resolve().relative_to(root).as_posix()))
+                paths.add(Path(path).resolve().relative_to(root).as_posix())
             except ValueError:
                 pass
-    return excludes
+    return paths
 
 
 def cmd_scan(args) -> int:
-    result = scan(args.path, excludes=args.exclude + _baseline_excludes(args), min_severity=args.min_severity)
+    result = scan(args.path, excludes=args.exclude, min_severity=args.min_severity)
+    baseline_files = _baseline_paths(args)
+    result.findings = [f for f in result.findings if f.path not in baseline_files]
     known = None
     if args.baseline:
         try:
