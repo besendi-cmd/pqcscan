@@ -182,23 +182,12 @@ def test_cli_upload_ignores_min_severity(monkeypatch, tmp_path):
     assert {f["severity"] for f in sent["report"]["findings"]} > {"critical"}
 
 
-def test_single_file_upload_uses_containing_repo(monkeypatch, tmp_path):
-    import subprocess
-    for var in ("GITHUB_REPOSITORY", "GITHUB_SHA", "GITHUB_HEAD_REF", "GITHUB_REF_NAME"):
-        monkeypatch.delenv(var, raising=False)
-    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
-    subprocess.run(["git", "-C", str(tmp_path), "remote", "add", "origin", "git@github.com:acme/vault.git"], check=True)
-    (tmp_path / "keys.py").write_text("key = rsa.generate_private_key(65537, 2048)\n")
-    sent = {}
-
-    def fake_urlopen(request, timeout):
-        sent.update(json.loads(request.data))
-        raise HTTPError(request.full_url, 500, "error", {}, None)
-
-    monkeypatch.setattr(upload_module, "urlopen", fake_urlopen)
+def test_single_file_upload_is_refused(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(upload_module, "urlopen", lambda *a, **k: pytest.fail("must not upload"))
     monkeypatch.setenv("PQCSCAN_TOKEN", TOKEN)
-    main(["scan", str(tmp_path / "keys.py"), "--upload", "http://dash.test"])
-    assert sent["repo"] == "acme/vault"
+    (tmp_path / "keys.py").write_text("key = rsa.generate_private_key(65537, 2048)\n")
+    assert main(["scan", str(tmp_path / "keys.py"), "--upload", "http://dash.test"]) == 2
+    assert "repository directory" in capsys.readouterr().err
 
 
 def test_upload_does_not_follow_redirects():

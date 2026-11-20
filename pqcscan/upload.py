@@ -61,8 +61,6 @@ def detect_commit(root: Path) -> tuple[str | None, str | None]:
 
 def upload(result: ScanResult, url: str, token: str, repo: str | None = None) -> dict:
     root = Path(result.root)
-    if root.is_file():
-        root = root.parent
     commit, branch = detect_commit(root)
     payload = {
         "repo": repo or detect_repo(root),

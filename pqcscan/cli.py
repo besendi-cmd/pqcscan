@@ -36,6 +36,9 @@ def cmd_scan(args) -> int:
     result.findings = [f for f in result.findings if f.path not in baseline_files]
     if args.upload:
         from .upload import UploadError, upload
+        if Path(args.path).is_file():
+            print("pqcscan: --upload needs a repository directory, not a single file", file=sys.stderr)
+            return 2
         token = os.environ.get("PQCSCAN_TOKEN")
         if not token:
             print("pqcscan: set PQCSCAN_TOKEN to the dashboard upload token", file=sys.stderr)
