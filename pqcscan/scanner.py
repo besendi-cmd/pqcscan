@@ -30,6 +30,7 @@ DEFAULT_EXCLUDED_DIRS = {
     ".git", ".hg", ".svn", "node_modules", ".venv", "venv", "env", "__pycache__", ".tox", ".nox",
     ".mypy_cache", ".pytest_cache", "dist", "build", "target", "vendor", "site-packages", ".idea", ".vscode",
 }
+DEFAULT_EXCLUDED_DIR_GLOBS = ["*.egg-info", "*.dist-info"]
 DEFAULT_EXCLUDED_FILES = [
     "*.md", "*.rst", "*.adoc", "*.min.js", "*.map", "*.lock", "package-lock.json", "yarn.lock",
     "pnpm-lock.yaml", "*.sarif",
@@ -199,7 +200,9 @@ def iter_files(root: Path, excludes: list[str]):
         base = Path(dirpath)
         dirnames[:] = sorted(
             d for d in dirnames
-            if d not in DEFAULT_EXCLUDED_DIRS and not _excluded((base / d).relative_to(root).as_posix(), d, excludes)
+            if d not in DEFAULT_EXCLUDED_DIRS
+            and not any(fnmatch.fnmatch(d, g) for g in DEFAULT_EXCLUDED_DIR_GLOBS)
+            and not _excluded((base / d).relative_to(root).as_posix(), d, excludes)
         )
         for name in sorted(filenames):
             path = base / name

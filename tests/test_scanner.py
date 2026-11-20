@@ -121,6 +121,12 @@ def test_excludes_and_ignore_file(tmp_path):
     assert scan(tmp_path).findings == []
 
 
+def test_skips_build_metadata(tmp_path):
+    (tmp_path / "pkg.egg-info").mkdir()
+    (tmp_path / "pkg.egg-info" / "PKG-INFO").write_text("Curve: P-256, cipher aes-128-cbc\n")
+    assert scan(tmp_path).findings == []
+
+
 def test_sarif_is_valid_shape():
     sarif = json.loads(to_sarif(scan(EXAMPLES)))
     run = sarif["runs"][0]
