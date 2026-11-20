@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 
 from pqcscan import upload as upload_module
 from pqcscan.cli import main
+from pqcscan.dashboard import app as app_module
 from pqcscan.dashboard.app import create_app
 from pqcscan.report import to_json
 from pqcscan.scanner import scan
@@ -150,3 +151,11 @@ def test_detect_repo_from_git_remote(tmp_path, monkeypatch):
     subprocess.run(["git", "-C", str(tmp_path), "remote", "add", "origin", "git@github.com:acme/vault.git"], check=True)
     assert upload_module.detect_repo(tmp_path) == "acme/vault"
     assert upload_module.detect_repo(tmp_path / "missing") == "missing"
+
+
+def test_upload_rejects_oversized_body(client, monkeypatch):
+    monkeypatch.setattr(app_module, "MAX_BODY_BYTES", 100)
+    assert client.post("/api/v1/scans", json=_payload(), headers=AUTH).status_code == 413
+    body = json.dumps(_payload()).encode()
+    r = client.post("/api/v1/scans", content=iter([body[:80], body[80:]]), headers=AUTH)
+    assert r.status_code == 413

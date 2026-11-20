@@ -91,9 +91,16 @@ def create_app(db_path: str | Path, token: str | None) -> FastAPI:
         scheme, _, value = request.headers.get("authorization", "").partition(" ")
         if not token or scheme.lower() != "bearer" or not hmac.compare_digest(value.encode(), token.encode()):
             raise HTTPException(401, "invalid or missing upload token")
-        body = await request.body()
-        if len(body) > MAX_BODY_BYTES:
+        declared = request.headers.get("content-length", "")
+        if declared.isdigit() and int(declared) > MAX_BODY_BYTES:
             raise HTTPException(413, "report too large")
+        chunks, size = [], 0
+        async for chunk in request.stream():
+            size += len(chunk)
+            if size > MAX_BODY_BYTES:
+                raise HTTPException(413, "report too large")
+            chunks.append(chunk)
+        body = b"".join(chunks)
         try:
             repo, commit, branch, report = _validate(json.loads(body))
         except ValueError as e:
