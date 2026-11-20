@@ -102,9 +102,28 @@ jobs:
         with:
           fail-on: high
           # baseline: .pqcscan-baseline.json   # optional: only fail on new findings
+          # dashboard-url: https://pqc.example.com
+          # dashboard-token: ${{ secrets.PQCSCAN_TOKEN }}
 ```
 
 Findings appear in the repository's **Security → Code scanning** tab.
+
+## Migration dashboard
+
+The dashboard collects scans from every repository. It shows how many repositories are migration-ready (no quantum-vulnerable crypto left), open findings by severity, the algorithms still in use, and a trend line of remaining quantum-vulnerable usages.
+
+```bash
+pip install "pqcscan[dashboard]"
+PQCSCAN_DASHBOARD_TOKEN=$(openssl rand -hex 32) pqcscan serve --host 0.0.0.0 --port 8000 --db /var/lib/pqcscan/dashboard.db
+```
+
+Send scans from a laptop or any CI system. Uploads always contain the full scan, including findings hidden by `--baseline`:
+
+```bash
+PQCSCAN_TOKEN=<upload token> pqcscan scan . --upload https://pqc.example.com   # repo name, commit and branch come from git
+```
+
+The upload API is `POST /api/v1/scans`, authenticated with `Authorization: Bearer <token>`. A JSON summary is available at `GET /api/v1/summary`. Dashboard pages and the summary are read-only and have no login, so run the dashboard on an internal network or behind your SSO proxy.
 
 ## Development
 
@@ -118,7 +137,7 @@ pytest
 
 - Live TLS / SSH endpoint scanning
 - AST-based analysis to cut false positives
-- Hosted dashboard tracking migration progress across an organisation's repositories
+- Dashboard: SSO login, per-team views, deadline tracking against NIST 2030/2035 milestones
 
 ## Limitations
 

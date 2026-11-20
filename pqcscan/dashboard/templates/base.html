@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}pqcscan dashboard{% endblock %}</title>
+<style>
+  :root { --bg:#0f1220; --panel:#171b2e; --line:#272c45; --text:#e6e8f2; --muted:#9097b4; --accent:#8b7bff;
+          --critical:#ff4d6d; --high:#ff8a3d; --medium:#f5c542; --low:#4cc9f0; --ok:#3ddc97; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; background:var(--bg); color:var(--text); }
+  header { display:flex; align-items:center; gap:12px; padding:16px 32px; border-bottom:1px solid var(--line); }
+  header a { color:var(--text); text-decoration:none; font-weight:600; font-size:16px; }
+  header .tag { color:var(--muted); }
+  main { max-width:1200px; margin:0 auto; padding:24px 32px 64px; }
+  h1 { font-size:22px; margin:0 0 4px; } h2 { font-size:15px; margin:32px 0 12px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
+  .sub { color:var(--muted); margin:0 0 20px; }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px; }
+  .card .label { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
+  .card .value { font-size:28px; font-weight:700; margin-top:4px; }
+  .bar { height:6px; background:var(--line); border-radius:3px; margin-top:10px; overflow:hidden; }
+  .bar span { display:block; height:100%; background:var(--ok); }
+  table { width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  th, td { padding:10px 12px; text-align:left; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
+  tr:last-child td { border-bottom:none; }
+  td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
+  a { color:var(--accent); }
+  code { font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace; color:#c9cdf0; word-break:break-all; }
+  .muted { color:var(--muted); }
+  .pill { display:inline-block; padding:1px 8px; border-radius:999px; font-size:12px; font-weight:600; }
+  .critical { color:var(--critical); } .high { color:var(--high); } .medium { color:var(--medium); } .low { color:var(--low); }
+  .pill.critical { background:#ff4d6d22; } .pill.high { background:#ff8a3d22; } .pill.medium { background:#f5c54222; } .pill.low { background:#4cc9f022; }
+  .pill.ready { color:var(--ok); background:#3ddc9722; } .pill.at-risk { color:var(--critical); background:#ff4d6d22; }
+  .chart { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px; }
+  .chart svg { width:100%; height:auto; display:block; }
+  .chart .axis { display:flex; justify-content:space-between; color:var(--muted); font-size:12px; margin-top:6px; }
+  .grid2 { display:grid; grid-template-columns:2fr 1fr; gap:12px; } @media (max-width:900px) { .grid2 { grid-template-columns:1fr; } }
+  .empty { background:var(--panel); border:1px dashed var(--line); border-radius:10px; padding:32px; }
+  pre { background:#0b0e1a; border:1px solid var(--line); border-radius:8px; padding:12px; overflow:auto; }
+</style>
+</head>
+<body>
+<header><a href="/">pqcscan</a><span class="tag">post-quantum migration dashboard</span></header>
+<main>{% block content %}{% endblock %}</main>
+</body>
+</html>

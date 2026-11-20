@@ -1,0 +1,10 @@
+{% if chart %}
+<div class="chart">
+  <svg viewBox="0 0 {{ chart.width }} {{ chart.height }}" preserveAspectRatio="none" role="img"
+       aria-label="Quantum-vulnerable usages over time, currently {{ chart.current }}">
+    <polyline points="{{ chart.points }}" fill="none" stroke="var(--accent)" stroke-width="2.5"
+              vector-effect="non-scaling-stroke" stroke-linejoin="round"/>
+  </svg>
+  <div class="axis"><span>{{ chart.first }}</span><span>peak {{ chart.top }}</span><span>{{ chart.last }}</span></div>
+</div>
+{% endif %}

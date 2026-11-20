@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Organisation overview</h1>
+<p class="sub">Quantum-vulnerable cryptography across every repository that reports to this dashboard.</p>
+{% if not repos %}
+<div class="empty">
+  <p><strong>No scans yet.</strong> Send one from any repository:</p>
+<pre>PQCSCAN_TOKEN=&lt;upload token&gt; pqcscan scan . --upload {{ request.base_url }}</pre>
+  <p class="muted">or set <code>dashboard-url</code> and <code>dashboard-token</code> on the pqcscan GitHub Action.</p>
+</div>
+{% else %}
+<div class="cards">
+  <div class="card"><div class="label">Migration-ready repos</div>
+    <div class="value">{{ totals.readiness }}%</div>
+    <div class="muted">{{ totals.ready }} of {{ totals.repos }} have no quantum-vulnerable crypto</div>
+    <div class="bar"><span style="width: {{ totals.readiness }}%"></span></div></div>
+  <div class="card"><div class="label">Quantum-vulnerable usages</div><div class="value">{{ totals.quantum_vulnerable }}</div>
+    <div class="muted">left to migrate</div></div>
+  <div class="card"><div class="label">Critical</div><div class="value critical">{{ totals.critical }}</div>
+    <div class="muted">harvest-now, decrypt-later exposure</div></div>
+  <div class="card"><div class="label">High</div><div class="value high">{{ totals.high }}</div>
+    <div class="muted">signatures and keys</div></div>
+</div>
+
+<h2>Quantum-vulnerable usages over time</h2>
+{% include "_chart.html" %}
+
+<div class="grid2">
+<div>
+<h2>Repositories</h2>
+<table>
+  <thead><tr><th>Repository</th><th>Status</th>{% for s in severities %}<th class="num">{{ s }}</th>{% endfor %}<th>Last scan</th></tr></thead>
+  <tbody>
+  {% for r in repos %}
+  <tr>
+    <td><a href="/repos/{{ r.name }}">{{ r.name }}</a>{% if r.branch %}<div class="muted">{{ r.branch }}{% if r.commit_sha %} @ <code>{{ r.commit_sha[:7] }}</code>{% endif %}</div>{% endif %}</td>
+    <td><span class="pill {{ status(r) }}">{{ "ready" if status(r) == "ready" else "at risk" }}</span></td>
+    {% for s in severities %}<td class="num {{ s if r[s] else 'muted' }}">{{ r[s] }}</td>{% endfor %}
+    <td class="muted">{{ r.created.replace("T", " ")[:16] }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<div>
+<h2>Algorithms in use</h2>
+<table>
+  <thead><tr><th>Algorithm</th><th class="num">Usages</th></tr></thead>
+  <tbody>
+  {% for algorithm, n in inventory.items() %}<tr><td>{{ algorithm }}</td><td class="num">{{ n }}</td></tr>{% else %}
+  <tr><td colspan="2" class="muted">Nothing left to migrate.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+</div>
+{% endif %}
+{% endblock %}
