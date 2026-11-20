@@ -1,0 +1,74 @@
+import json
+import shutil
+from pathlib import Path
+
+import pytest
+
+from pqcscan.baseline import apply_baseline, load_baseline, write_baseline
+from pqcscan.cli import main
+from pqcscan.scanner import scan
+
+EXAMPLES = Path(__file__).resolve().parent.parent / "examples" / "vulnerable-app"
+
+
+@pytest.fixture
+def app(tmp_path):
+    shutil.copytree(EXAMPLES, tmp_path / "app")
+    return tmp_path / "app"
+
+
+def test_fingerprints_unique_and_stable_across_line_shifts(app):
+    before = scan(app)
+    fps = [f.fingerprint for f in before.findings]
+    assert len(fps) == len(set(fps)) and all(fps)
+    js = app / "auth.js"
+    js.write_text("// new header line\n\n" + js.read_text())
+    assert {f.fingerprint for f in scan(app).findings} == set(fps)
+
+
+def test_duplicate_lines_get_distinct_fingerprints(tmp_path):
+    (tmp_path / "a.py").write_text("hashlib.md5(x)\nhashlib.md5(x)\n")
+    fps = [f.fingerprint for f in scan(tmp_path).findings]
+    assert len(fps) == 2 and fps[0] != fps[1]
+
+
+def test_baseline_reports_only_new_and_counts_fixed(app, tmp_path):
+    baseline = tmp_path / "baseline.json"
+    total = write_baseline(scan(app), baseline)
+    assert total == len(load_baseline(baseline))
+
+    (app / "new.go").write_text('import "crypto/ecdsa"\n')
+    (app / "requirements.txt").write_text("flask==3.0.3\n")  # fixes the two dependency findings
+    result = scan(app)
+    apply_baseline(result, load_baseline(baseline))
+    assert [(f.path, f.rule_id) for f in result.findings] == [("new.go", "PQC006")]
+    assert result.baseline_resolved == 2
+    assert result.baseline_suppressed == total - 2
+
+
+def test_cli_baseline_gates_ci(app, tmp_path, capsys):
+    baseline = tmp_path / "b.json"
+    assert main(["scan", str(app), "--write-baseline", str(baseline), "--fail-on", "none"]) == 0
+    assert main(["scan", str(app), "--baseline", str(baseline), "--fail-on", "low"]) == 0
+    assert "No new quantum-vulnerable cryptography found." in capsys.readouterr().out
+
+    (app / "x.py").write_text("k = rsa.generate_private_key(public_exponent=65537, key_size=2048)\n")
+    out_json = tmp_path / "r.json"
+    assert main(["scan", str(app), "--baseline", str(baseline), "--fail-on", "high", "--json", str(out_json)]) == 1
+    report = json.loads(out_json.read_text())
+    assert [f["path"] for f in report["findings"]] == ["x.py"]
+    assert report["baseline"]["resolved"] == 0
+
+
+def test_cli_rejects_bad_baseline(app, tmp_path):
+    bad = tmp_path / "bad.json"
+    bad.write_text("{}")
+    assert main(["scan", str(app), "--baseline", str(bad)]) == 2
+    assert main(["scan", str(app), "--baseline", str(tmp_path / "missing.json")]) == 2
+
+
+def test_sarif_has_partial_fingerprints(app):
+    from pqcscan.report import to_sarif
+
+    results = json.loads(to_sarif(scan(app)))["runs"][0]["results"]
+    assert all(r["partialFingerprints"]["pqcscan/v1"] for r in results)

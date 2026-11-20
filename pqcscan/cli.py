@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 from . import __version__
+from .baseline import apply_baseline, load_baseline, write_baseline
 from .cbom import to_cbom
 from .report import to_json, to_sarif, to_text
 from .rules import ALL_RULES, SEVERITIES
@@ -17,6 +18,15 @@ def _write(path: str, content: str) -> None:
 
 def cmd_scan(args) -> int:
     result = scan(args.path, excludes=args.exclude, min_severity=args.min_severity)
+    if args.write_baseline:
+        n = write_baseline(result, args.write_baseline)
+        print(f"Wrote baseline with {n} findings to {args.write_baseline}", file=sys.stderr)
+    if args.baseline:
+        try:
+            apply_baseline(result, load_baseline(args.baseline))
+        except (OSError, ValueError) as e:
+            print(f"pqcscan: cannot read baseline: {e}", file=sys.stderr)
+            return 2
     if args.format == "text":
         color = sys.stdout.isatty() and not args.no_color and not args.output
         report = to_text(result, color=color)
@@ -55,6 +65,8 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--sarif", metavar="FILE", help="also write a SARIF report (for GitHub Code Scanning)")
     s.add_argument("--json", metavar="FILE", help="also write a JSON report")
     s.add_argument("--cbom", metavar="FILE", help="also write a CycloneDX 1.6 cryptographic bill of materials")
+    s.add_argument("--baseline", metavar="FILE", help="only report findings that are not in this baseline file")
+    s.add_argument("--write-baseline", metavar="FILE", help="record all current findings as the baseline")
     s.add_argument("--exclude", action="append", default=[], metavar="GLOB", help="skip matching paths (repeatable)")
     s.add_argument("--min-severity", choices=SEVERITIES, default="low", help="hide findings below this severity")
     s.add_argument("--fail-on", choices=SEVERITIES + ("none",), default="none",

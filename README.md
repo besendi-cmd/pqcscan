@@ -68,6 +68,18 @@ Try it on the bundled sample: `pqcscan scan examples/vulnerable-app`.
 
 `--format cbom` (or `--cbom FILE` alongside another format) writes a [CycloneDX 1.6](https://cyclonedx.org/capabilities/cbom/) CBOM: one `cryptographic-asset` per algorithm (with primitive, functions, parameter set and `nistQuantumSecurityLevel`), keys and certificates as related crypto material, crypto-only dependencies as libraries, and every location as `evidence.occurrences`. Severity and recommended replacement are attached as `pqcscan:*` properties. Compliance teams can import it into tools that read CycloneDX, such as Dependency-Track.
 
+### Baselines: fail CI only on new findings
+
+Most codebases already use RSA or ECC, so failing every build is not useful on day one. Record what exists today and gate only on new findings:
+
+```bash
+pqcscan scan . --write-baseline .pqcscan-baseline.json   # commit this file
+pqcscan scan . --baseline .pqcscan-baseline.json --fail-on high
+# Baseline: 1 new, 21 already known, 3 fixed since the baseline
+```
+
+Fingerprints use the rule, file and normalised line content (not the line number), so unrelated edits don't resurface old findings. Re-run `--write-baseline` after migrating code to lock in progress. In the GitHub Action, set `baseline: .pqcscan-baseline.json`.
+
 ### Suppressing findings
 
 - Add `pqcscan: ignore` in a comment on the line.
@@ -89,6 +101,7 @@ jobs:
       - uses: besendi-cmd/pqcscan@main
         with:
           fail-on: high
+          # baseline: .pqcscan-baseline.json   # optional: only fail on new findings
 ```
 
 Findings appear in the repository's **Security → Code scanning** tab.
@@ -104,7 +117,6 @@ pytest
 ## Roadmap
 
 - Live TLS / SSH endpoint scanning
-- Baselines so CI only fails on new findings
 - AST-based analysis to cut false positives
 - Hosted dashboard tracking migration progress across an organisation's repositories
 
