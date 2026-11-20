@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import argparse
+import glob
 import os
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 from . import __version__
@@ -17,11 +19,20 @@ def _write(path: str, content: str) -> None:
     Path(path).write_text(content + "\n")
 
 
+def _baseline_excludes(args) -> list[str]:
+    root = Path(args.path).resolve()
+    excludes = []
+    for path in (args.baseline, args.write_baseline):
+        if path:
+            try:
+                excludes.append(glob.escape(Path(path).resolve().relative_to(root).as_posix()))
+            except ValueError:
+                pass
+    return excludes
+
+
 def cmd_scan(args) -> int:
-    result = scan(args.path, excludes=args.exclude, min_severity=args.min_severity)
-    if args.write_baseline:
-        n = write_baseline(result, args.write_baseline)
-        print(f"Wrote baseline with {n} findings to {args.write_baseline}", file=sys.stderr)
+    result = scan(args.path, excludes=args.exclude + _baseline_excludes(args), min_severity=args.min_severity)
     if args.upload:
         from .upload import UploadError, upload
         token = os.environ.get("PQCSCAN_TOKEN")
@@ -34,17 +45,24 @@ def cmd_scan(args) -> int:
             print(f"pqcscan: upload failed: {e}", file=sys.stderr)
             return 2
         print(f"Uploaded scan to {uploaded.get('url', args.upload)}", file=sys.stderr)
+    known = None
     if args.baseline:
         try:
-            apply_baseline(result, load_baseline(args.baseline))
+            known = load_baseline(args.baseline)
         except (OSError, ValueError) as e:
             print(f"pqcscan: cannot read baseline: {e}", file=sys.stderr)
             return 2
+    if args.write_baseline:
+        n = write_baseline(result, args.write_baseline)
+        print(f"Wrote baseline with {n} findings to {args.write_baseline}", file=sys.stderr)
+    inventory = replace(result, findings=list(result.findings))
+    if known is not None:
+        apply_baseline(result, known)
     if args.format == "text":
         color = sys.stdout.isatty() and not args.no_color and not args.output
         report = to_text(result, color=color)
     else:
-        report = {"json": to_json, "sarif": to_sarif, "cbom": to_cbom}[args.format](result)
+        report = to_cbom(inventory) if args.format == "cbom" else {"json": to_json, "sarif": to_sarif}[args.format](result)
     if args.output:
         _write(args.output, report)
     else:
@@ -54,7 +72,7 @@ def cmd_scan(args) -> int:
     if args.json:
         _write(args.json, to_json(result))
     if args.cbom:
-        _write(args.cbom, to_cbom(result))
+        _write(args.cbom, to_cbom(inventory))
     if args.fail_on != "none" and result.at_or_above(args.fail_on):
         return 1
     return 0
