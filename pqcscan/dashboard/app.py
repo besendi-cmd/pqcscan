@@ -38,6 +38,14 @@ def _validate(payload) -> tuple[str, str | None, str | None, dict]:
             raise ValueError("each finding needs " + ", ".join(FINDING_FIELDS))
         if f["severity"] not in SEVERITIES:
             raise ValueError(f"unknown severity {f['severity']!r}")
+    files = report.get("files_scanned", 0)
+    if not isinstance(files, int) or isinstance(files, bool) or files < 0:
+        raise ValueError("files_scanned must be a non-negative integer")
+    inventory = report.get("inventory", {})
+    if not isinstance(inventory, dict) or any(
+        not isinstance(k, str) or not isinstance(v, int) or isinstance(v, bool) for k, v in inventory.items()
+    ):
+        raise ValueError("inventory must map algorithm names to counts")
     return repo, meta[0], meta[1], report
 
 

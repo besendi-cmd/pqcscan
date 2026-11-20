@@ -43,6 +43,10 @@ def test_upload_disabled_without_server_token(tmp_path):
     [], {"repo": "../etc", "report": {"findings": []}}, {"repo": "a b", "report": {"findings": []}},
     {"repo": "ok", "report": {}}, {"repo": "ok", "report": {"findings": [{"severity": "high"}]}},
     {"repo": "ok", "commit": 5, "report": {"findings": []}},
+    {"repo": "ok", "report": {"findings": [], "inventory": None}},
+    {"repo": "ok", "report": {"findings": [], "inventory": {"RSA": "3"}}},
+    {"repo": "ok", "report": {"findings": [], "files_scanned": "many"}},
+    {"repo": "ok", "report": {"findings": [], "files_scanned": -1}},
 ])
 def test_upload_rejects_invalid_payloads(client, payload):
     assert client.post("/api/v1/scans", json=payload, headers=AUTH).status_code == 422
