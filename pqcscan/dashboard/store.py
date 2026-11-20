@@ -100,8 +100,9 @@ class Store:
                 "SELECT " + ", ".join(SUMMARY_COLUMNS) + " FROM scans WHERE repo_id = ? ORDER BY id DESC",
                 (row["id"],),
             ).fetchall()
-            report = db.execute("SELECT report FROM scans WHERE id = ?", (history[0]["id"],)).fetchone()
-        return {"name": name, "history": [dict(h) for h in history], "report": json.loads(report["report"])}
+            latest = db.execute("SELECT report, inventory FROM scans WHERE id = ?", (history[0]["id"],)).fetchone()
+        return {"name": name, "history": [dict(h) for h in history], "report": json.loads(latest["report"]),
+                "inventory": json.loads(latest["inventory"])}
 
     def trend(self) -> list[tuple[str, int]]:
         """Org-wide quantum-vulnerable usages at the end of each day that had a scan."""

@@ -216,3 +216,11 @@ def test_upload_does_not_follow_redirects():
     finally:
         server.shutdown()
     assert [path for path, _ in seen] == ["/api/v1/scans"]
+
+
+def test_repo_page_lists_algorithms_without_report_inventory(client):
+    payload = _payload(repo="acme/bare")
+    del payload["report"]["inventory"]
+    assert client.post("/api/v1/scans", json=payload, headers=AUTH).status_code == 201
+    algorithm = payload["report"]["findings"][0]["algorithm"]
+    assert algorithm in client.get("/repos/acme/bare").text.split("Algorithms in use", 1)[1]

@@ -137,7 +137,7 @@ def create_app(db_path: str | Path, token: str | None) -> FastAPI:
         series = [(h["created"][:10], h["quantum_vulnerable"]) for h in reversed(repo["history"])]
         return templates.TemplateResponse(request, "repo.html", {
             "repo": repo, "latest": latest, "findings": findings, "chart": _chart(list(dict(series).items())),
-            "quantum": is_quantum_vulnerable, "inventory": repo["report"].get("inventory", {}),
+            "quantum": is_quantum_vulnerable, "inventory": dict(sorted(repo["inventory"].items(), key=lambda kv: (-kv[1], kv[0]))),
         })
 
     return app
