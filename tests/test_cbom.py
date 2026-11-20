@@ -120,3 +120,8 @@ def test_cbom_handles_non_utf8_paths(tmp_path):
     keys = [c for c in json.loads(text)["components"] if c["bom-ref"].startswith("crypto/key/")]
     assert keys and keys[0]["name"].endswith("key-\\xff.pem:1")
     assert keys[0]["evidence"]["occurrences"][0]["location"] == "key-\\xff.pem"
+
+    (tmp_path / "key-\\xff.pem").write_bytes(_pem(key))
+    keys = [c for c in json.loads(to_cbom(scan(tmp_path)))["components"]
+            if c["bom-ref"].startswith("crypto/key/")]
+    assert len(keys) == 2

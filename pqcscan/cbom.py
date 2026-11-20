@@ -121,7 +121,7 @@ class _Builder:
         existing.extend(fn for fn in functions if fn not in existing)
         return ref
 
-    def add(self, f: Finding) -> None:
+    def add(self, f: Finding, location: str | None = None) -> None:
         if f.rule_id in PRIMITIVES:
             primitive, functions = PRIMITIVES[f.rule_id]
             if f.algorithm == "RC4":  # pqcscan: ignore
@@ -130,7 +130,7 @@ class _Builder:
         elif f.rule_id in KEY_MATERIAL or f.rule_id == CERTIFICATE:
             primitive, name = _key_algorithm(f.algorithm)
             algorithm_ref = self.algorithm(name, primitive, ["keygen"], f)
-            location = _location_id(f)
+            location = location or _location_id(f)
             size = re.search(r"-(\d+)$", f.algorithm)
             if f.rule_id == CERTIFICATE:
                 key_ref = f"crypto/key/{location}-subject-public-key"
@@ -171,7 +171,7 @@ class _Builder:
 def to_cbom(result: ScanResult, serial: str | None = None, timestamp: str | None = None) -> str:
     builder = _Builder()
     for f in result.findings:
-        builder.add(replace(f, path=_display_path(f.path)))
+        builder.add(replace(f, path=_display_path(f.path)), location=_location_id(f))
     components = builder.finish()
     app_ref = "application"
     bom = {
