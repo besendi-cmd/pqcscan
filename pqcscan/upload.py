@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import subprocess
 from pathlib import Path
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 from .report import to_json
@@ -31,9 +31,11 @@ def detect_repo(root: Path) -> str:
         return os.environ["GITHUB_REPOSITORY"]
     remote = _git(root, "config", "--get", "remote.origin.url")
     if remote:
-        m = re.search(r"[:/]([^/:]+/[^/]+?)(?:\.git)?/?$", remote)
-        if m:
-            return m.group(1)
+        path = urlparse(remote).path if "://" in remote else remote.rpartition(":")[2]
+        path = path.strip("/")
+        path = path[:-4] if path.endswith(".git") else path
+        if "/" in path:
+            return path
     return root.resolve().name
 
 

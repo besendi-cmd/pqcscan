@@ -156,6 +156,10 @@ def test_detect_repo_from_git_remote(tmp_path, monkeypatch):
     assert upload_module.detect_repo(tmp_path) == "acme/vault"
     assert upload_module.detect_repo(tmp_path / "missing") == "missing"
 
+    for remote in ("https://gitlab.example.com/division-a/team/service.git", "ssh://git@host:22/division-a/team/service/"):
+        subprocess.run(["git", "-C", str(tmp_path), "remote", "set-url", "origin", remote], check=True)
+        assert upload_module.detect_repo(tmp_path) == "division-a/team/service"
+
 
 def test_upload_rejects_oversized_body(client, monkeypatch):
     monkeypatch.setattr(app_module, "MAX_BODY_BYTES", 100)
