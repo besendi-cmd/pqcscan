@@ -1,0 +1,5 @@
+# Paths skipped when scanning this repository itself
+examples/
+tests/
+# rule definitions contain the patterns they detect
+pqcscan/rules.py
